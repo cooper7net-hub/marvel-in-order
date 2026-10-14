@@ -1,0 +1,386 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="dark light"><title>Marvel In Order</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone-first tracker. Sticky header with title and sync status, one scrolling column, fixed bottom tab bar (Next up / Timeline / Progress). Details open as a bottom sheet. */
+:root{
+  --bg:#F3F4F5; --surface:#FFFFFF; --surface2:#ECEEF0; --border:#D5D9DD;
+  --fg:#14181C; --muted:#5E666E; --red:#C8202B; --red-fg:#FFFFFF; --green:#2F8A3A; --green-soft:#DDF0DF;
+  --scrim:rgba(10,12,14,.5);
+  --display:'Barlow Condensed','Arial Narrow',Impact,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B0D0F; --surface:#15191D; --surface2:#1C2126; --border:#30363C;
+    --fg:#EEF0F2; --muted:#9DA3AA; --red:#E9343A; --red-fg:#FFFFFF; --green:#82D457; --green-soft:#1D2D19;
+    --scrim:rgba(0,0,0,.6); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B0D0F; --surface:#15191D; --surface2:#1C2126; --border:#30363C;
+  --fg:#EEF0F2; --muted:#9DA3AA; --red:#E9343A; --red-fg:#FFFFFF; --green:#82D457; --green-soft:#1D2D19;
+  --scrim:rgba(0,0,0,.6); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.4;padding-inline:0;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.app{max-width:720px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.brand b{background:var(--red);color:var(--red-fg);padding:1px 7px 0;margin-right:6px;display:inline-block}
+.sync{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.sync i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:5px}
+.sync.ok i{background:var(--green)}
+main{flex:1;padding:16px 16px 96px;display:flex;flex-direction:column;gap:16px;min-width:0}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--border);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
+nav.tabs .in{max-width:720px;width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+nav.tabs button{padding:9px 4px;border-radius:6px;font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{color:var(--red-fg);background:var(--red)}
+h2{font-family:var(--display);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:6px 12px;border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:500;color:var(--muted);background:var(--surface)}
+.chip[aria-pressed="true"]{border-color:var(--red);color:var(--fg);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--red)}
+.search{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);font:inherit}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.toggle input{accent-color:var(--red);width:18px;height:18px}
+/* list */
+.list{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden}
+.item{display:grid;grid-template-columns:34px 44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;width:100%}
+.item:last-child{border-bottom:0}
+.pos{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+.poster{width:44px;height:62px;border-radius:4px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.03em;color:#fff;position:relative;overflow:hidden;background:#555}
+.poster.u-MCU{background:linear-gradient(160deg,#B3202B,#5E0F16)}
+.poster.u-X_MEN{background:linear-gradient(160deg,#C9A227,#6A5008)}
+.poster.u-SPIDER_MAN{background:linear-gradient(160deg,#2C5FB8,#142B5C)}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sheetposter{width:120px;border-radius:6px;justify-self:start;display:block}
+.foot{font-size:12px;color:var(--muted);text-align:center}
+[hidden]{display:none!important}
+body{margin:0}
+img{max-width:100%}
+.poster.done::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.poster.done::before{content:"\2713";position:absolute;inset:0;display:grid;place-items:center;color:var(--green);font-size:24px;z-index:1;font-family:var(--body)}
+.t{min-width:0;display:block;width:100%}
+.t .name{font-weight:600;overflow-wrap:anywhere}
+.t.done .name{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--border)}
+.t .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);border-radius:3px;padding:0 5px;margin-right:6px;color:var(--muted)}
+.check{width:34px;height:34px;border-radius:50%;border:2px solid var(--border);display:grid;place-items:center;color:transparent;font-size:18px;background:var(--surface)}
+.check[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#0B0D0F}
+.check.part{border-color:var(--green);color:var(--green);font-size:11px;font-family:var(--mono)}
+.rowbtn{display:contents}
+/* hero */
+.hero{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:16px;display:grid;gap:12px}
+.hero .big{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.02;text-transform:uppercase;letter-spacing:.01em;overflow-wrap:anywhere}
+.btn{padding:11px 16px;border-radius:8px;font-weight:600;border:1px solid var(--border);background:var(--surface2)}
+.btn.primary{background:var(--red);border-color:var(--red);color:var(--red-fg)}
+.btn.small{padding:7px 12px;font-size:13px}
+.bar{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;border:1px solid var(--border)}
+.bar>span{display:block;height:100%;background:var(--green)}
+.stat{display:grid;gap:6px}
+.stat .head{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.stat .head span:last-child{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.card{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:16px;display:grid;gap:14px}
+.ringwrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.ring{position:relative;width:120px;height:120px;flex:none}
+.ring svg{width:120px;height:120px;transform:rotate(-90deg)}
+.ring .pct{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:32px}
+.counts{display:grid;gap:6px;font-size:14px}
+.counts b{font-family:var(--mono);font-weight:500}
+.empty{padding:24px 16px;text-align:center;color:var(--muted)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border-top:1px solid var(--border);border-radius:14px 14px 0 0;max-height:86%;overflow:auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-width:720px;margin:0 auto;display:grid;gap:14px}
+.sheet h3{font-family:var(--display);font-size:28px;line-height:1.05;text-transform:uppercase;margin:0;overflow-wrap:anywhere}
+.eps{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.ep{padding:10px 6px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);font-family:var(--mono);font-size:12px;text-align:center}
+.ep[aria-pressed="true"]{background:var(--green-soft);border-color:var(--green);color:var(--fg)}
+.ep[aria-pressed="true"]::before{content:"\2713 ";color:var(--green)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.danger{color:var(--red)}
+@media (prefers-reduced-motion:no-preference){.sheet.enter{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px)}}}
+</style></head><body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>MCU</b>In Order</div>
+    <div class="sync" id="sync"><i></i><span>This phone</span></div>
+  </header>
+  <main id="main"></main>
+  <nav class="tabs" aria-label="Sections"><div class="in" id="tabs" role="tablist"></div></nav>
+</div>
+<div id="layer"></div>
+<script>
+const CATALOG = [{"id":"captain_america_first_avenger","title":"Captain America: The First Avenger","type":"MOVIE","timeline":"1943–1945","year":2011,"phase":"Phase 1","universe":"MCU","episodes":null,"rel":"2011-07-22"},{"id":"agent_carter_s1","title":"Agent Carter — Season 1","type":"SERIES","timeline":"1946","year":2015,"phase":"Marvel Television","universe":"MCU","episodes":[{"id":"agent_carter_s1e1","number":1},{"id":"agent_carter_s1e2","number":2},{"id":"agent_carter_s1e3","number":3},{"id":"agent_carter_s1e4","number":4},{"id":"agent_carter_s1e5","number":5},{"id":"agent_carter_s1e6","number":6},{"id":"agent_carter_s1e7","number":7},{"id":"agent_carter_s1e8","number":8}],"rel":"2015-01-06"},{"id":"agent_carter_s2","title":"Agent Carter — Season 2","type":"SERIES","timeline":"1947","year":2016,"phase":"Marvel Television","universe":"MCU","episodes":[{"id":"agent_carter_s2e1","number":1},{"id":"agent_carter_s2e2","number":2},{"id":"agent_carter_s2e3","number":3},{"id":"agent_carter_s2e4","number":4},{"id":"agent_carter_s2e5","number":5},{"id":"agent_carter_s2e6","number":6},{"id":"agent_carter_s2e7","number":7},{"id":"agent_carter_s2e8","number":8},{"id":"agent_carter_s2e9","number":9},{"id":"agent_carter_s2e10","number":10}],"rel":"2016-01-19"},{"id":"captain_marvel","title":"Captain Marvel","type":"MOVIE","timeline":"1995","year":2019,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2019-03-08"},{"id":"iron_man","title":"Iron Man","type":"MOVIE","timeline":"2010","year":2008,"phase":"Phase 1","universe":"MCU","episodes":null,"rel":"2008-05-02"},{"id":"iron_man_2","title":"Iron Man 2","type":"MOVIE","timeline":"2011","year":2010,"phase":"Phase 1","universe":"MCU","episodes":null,"rel":"2010-05-07"},{"id":"incredible_hulk","title":"The Incredible Hulk","type":"MOVIE","timeline":"2011","year":2008,"phase":"Phase 1","universe":"MCU","episodes":null,"rel":"2008-06-13"},{"id":"funny_thing","title":"A Funny Thing Happened on the Way to Thor’s Hammer","type":"ONE_SHOT","timeline":"2011","year":2011,"phase":"One-Shot","universe":"MCU","episodes":null,"rel":"2011-10-25"},{"id":"thor","title":"Thor","type":"MOVIE","timeline":"2011","year":2011,"phase":"Phase 1","universe":"MCU","episodes":null,"rel":"2011-05-06"},{"id":"consultant","title":"The Consultant","type":"ONE_SHOT","timeline":"2011","year":2011,"phase":"One-Shot","universe":"MCU","episodes":null,"rel":"2011-09-13"},{"id":"avengers","title":"The Avengers","type":"MOVIE","timeline":"2012","year":2012,"phase":"Phase 1","universe":"MCU","episodes":null,"rel":"2012-05-04"},{"id":"item_47","title":"Item 47","type":"ONE_SHOT","timeline":"2012","year":2012,"phase":"One-Shot","universe":"MCU","episodes":null,"rel":"2012-09-25"},{"id":"iron_man_3","title":"Iron Man 3","type":"MOVIE","timeline":"Late 2012","year":2013,"phase":"Phase 2","universe":"MCU","episodes":null,"rel":"2013-05-03"},{"id":"all_hail_king","title":"All Hail the King","type":"ONE_SHOT","timeline":"After Iron Man 3","year":2014,"phase":"One-Shot","universe":"MCU","episodes":null,"rel":"2014-02-04"},{"id":"thor_dark_world","title":"Thor: The Dark World","type":"MOVIE","timeline":"2013","year":2013,"phase":"Phase 2","universe":"MCU","episodes":null,"rel":"2013-11-08"},{"id":"winter_soldier","title":"Captain America: The Winter Soldier","type":"MOVIE","timeline":"2014","year":2014,"phase":"Phase 2","universe":"MCU","episodes":null,"rel":"2014-04-04"},{"id":"guardians_1","title":"Guardians of the Galaxy","type":"MOVIE","timeline":"2014","year":2014,"phase":"Phase 2","universe":"MCU","episodes":null,"rel":"2014-08-01"},{"id":"guardians_2","title":"Guardians of the Galaxy Vol. 2","type":"MOVIE","timeline":"2014","year":2017,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2017-05-05"},{"id":"i_am_groot_s1","title":"I Am Groot — Season 1","type":"SERIES","timeline":"2014","year":2022,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"i_am_groot_s1e1","number":1},{"id":"i_am_groot_s1e2","number":2},{"id":"i_am_groot_s1e3","number":3},{"id":"i_am_groot_s1e4","number":4},{"id":"i_am_groot_s1e5","number":5}],"rel":"2022-08-10"},{"id":"i_am_groot_s2","title":"I Am Groot — Season 2","type":"SERIES","timeline":"2014","year":2023,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"i_am_groot_s2e1","number":1},{"id":"i_am_groot_s2e2","number":2},{"id":"i_am_groot_s2e3","number":3},{"id":"i_am_groot_s2e4","number":4},{"id":"i_am_groot_s2e5","number":5}],"rel":"2023-09-06"},{"id":"age_ultron","title":"Avengers: Age of Ultron","type":"MOVIE","timeline":"2015","year":2015,"phase":"Phase 2","universe":"MCU","episodes":null,"rel":"2015-05-01"},{"id":"ant_man","title":"Ant-Man","type":"MOVIE","timeline":"2015","year":2015,"phase":"Phase 2","universe":"MCU","episodes":null,"rel":"2015-07-17"},{"id":"civil_war","title":"Captain America: Civil War","type":"MOVIE","timeline":"2016","year":2016,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2016-05-06"},{"id":"black_widow","title":"Black Widow","type":"MOVIE","timeline":"2016","year":2021,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2021-07-09"},{"id":"black_panther","title":"Black Panther","type":"MOVIE","timeline":"2016","year":2018,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2018-02-16"},{"id":"homecoming","title":"Spider-Man: Homecoming","type":"MOVIE","timeline":"2016","year":2017,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2017-07-07"},{"id":"doctor_strange","title":"Doctor Strange","type":"MOVIE","timeline":"2016–2017","year":2016,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2016-11-04"},{"id":"thor_ragnarok","title":"Thor: Ragnarok","type":"MOVIE","timeline":"2017","year":2017,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2017-11-03"},{"id":"ant_man_wasp","title":"Ant-Man and the Wasp","type":"MOVIE","timeline":"2018","year":2018,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2018-07-06"},{"id":"infinity_war","title":"Avengers: Infinity War","type":"MOVIE","timeline":"2018","year":2018,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2018-04-27"},{"id":"endgame","title":"Avengers: Endgame","type":"MOVIE","timeline":"2018 / 2023","year":2019,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2019-04-26"},{"id":"loki_s1","title":"Loki — Season 1","type":"SERIES","timeline":"Outside the linear timeline","year":2021,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"loki_s1e1","number":1},{"id":"loki_s1e2","number":2},{"id":"loki_s1e3","number":3},{"id":"loki_s1e4","number":4},{"id":"loki_s1e5","number":5},{"id":"loki_s1e6","number":6}],"rel":"2021-06-09"},{"id":"loki_s2","title":"Loki — Season 2","type":"SERIES","timeline":"Outside the linear timeline","year":2023,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"loki_s2e1","number":1},{"id":"loki_s2e2","number":2},{"id":"loki_s2e3","number":3},{"id":"loki_s2e4","number":4},{"id":"loki_s2e5","number":5},{"id":"loki_s2e6","number":6}],"rel":"2023-10-06"},{"id":"what_if_s1","title":"What If...? — Season 1","type":"SERIES","timeline":"Multiverse","year":2021,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"what_if_s1e1","number":1},{"id":"what_if_s1e2","number":2},{"id":"what_if_s1e3","number":3},{"id":"what_if_s1e4","number":4},{"id":"what_if_s1e5","number":5},{"id":"what_if_s1e6","number":6},{"id":"what_if_s1e7","number":7},{"id":"what_if_s1e8","number":8},{"id":"what_if_s1e9","number":9}],"rel":"2021-08-11"},{"id":"what_if_s2","title":"What If...? — Season 2","type":"SERIES","timeline":"Multiverse","year":2023,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"what_if_s2e1","number":1},{"id":"what_if_s2e2","number":2},{"id":"what_if_s2e3","number":3},{"id":"what_if_s2e4","number":4},{"id":"what_if_s2e5","number":5},{"id":"what_if_s2e6","number":6},{"id":"what_if_s2e7","number":7},{"id":"what_if_s2e8","number":8},{"id":"what_if_s2e9","number":9}],"rel":"2023-12-22"},{"id":"what_if_s3","title":"What If...? — Season 3","type":"SERIES","timeline":"Multiverse","year":2024,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"what_if_s3e1","number":1},{"id":"what_if_s3e2","number":2},{"id":"what_if_s3e3","number":3},{"id":"what_if_s3e4","number":4},{"id":"what_if_s3e5","number":5},{"id":"what_if_s3e6","number":6},{"id":"what_if_s3e7","number":7},{"id":"what_if_s3e8","number":8}],"rel":"2024-12-22"},{"id":"wandavision","title":"WandaVision","type":"SERIES","timeline":"2023","year":2021,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"wandavisione1","number":1},{"id":"wandavisione2","number":2},{"id":"wandavisione3","number":3},{"id":"wandavisione4","number":4},{"id":"wandavisione5","number":5},{"id":"wandavisione6","number":6},{"id":"wandavisione7","number":7},{"id":"wandavisione8","number":8},{"id":"wandavisione9","number":9}],"rel":"2021-01-15"},{"id":"visionquest_s1","title":"VisionQuest — Season 1","type":"SERIES","timeline":"Modern MCU","year":2026,"phase":"Phase 6","universe":"MCU","episodes":[{"id":"visionquest_s1e1","number":1},{"id":"visionquest_s1e2","number":2},{"id":"visionquest_s1e3","number":3},{"id":"visionquest_s1e4","number":4},{"id":"visionquest_s1e5","number":5},{"id":"visionquest_s1e6","number":6},{"id":"visionquest_s1e7","number":7},{"id":"visionquest_s1e8","number":8}],"rel":"2026-10-14"},{"id":"shang_chi","title":"Shang-Chi and the Legend of the Ten Rings","type":"MOVIE","timeline":"2024","year":2021,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2021-09-03"},{"id":"falcon_winter_soldier","title":"The Falcon and the Winter Soldier","type":"SERIES","timeline":"2024","year":2021,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"falcon_winter_soldiere1","number":1},{"id":"falcon_winter_soldiere2","number":2},{"id":"falcon_winter_soldiere3","number":3},{"id":"falcon_winter_soldiere4","number":4},{"id":"falcon_winter_soldiere5","number":5},{"id":"falcon_winter_soldiere6","number":6}],"rel":"2021-03-19"},{"id":"far_from_home","title":"Spider-Man: Far From Home","type":"MOVIE","timeline":"2024","year":2019,"phase":"Phase 3","universe":"MCU","episodes":null,"rel":"2019-07-02"},{"id":"eternals","title":"Eternals","type":"MOVIE","timeline":"2024","year":2021,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2021-11-05"},{"id":"no_way_home","title":"Spider-Man: No Way Home","type":"MOVIE","timeline":"2024","year":2021,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2021-12-17"},{"id":"doctor_strange_mom","title":"Doctor Strange in the Multiverse of Madness","type":"MOVIE","timeline":"2024–2025","year":2022,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2022-05-06"},{"id":"hawkeye","title":"Hawkeye","type":"SERIES","timeline":"Christmas 2024","year":2021,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"hawkeyee1","number":1},{"id":"hawkeyee2","number":2},{"id":"hawkeyee3","number":3},{"id":"hawkeyee4","number":4},{"id":"hawkeyee5","number":5},{"id":"hawkeyee6","number":6}],"rel":"2021-11-24"},{"id":"moon_knight","title":"Moon Knight","type":"SERIES","timeline":"2025","year":2022,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"moon_knighte1","number":1},{"id":"moon_knighte2","number":2},{"id":"moon_knighte3","number":3},{"id":"moon_knighte4","number":4},{"id":"moon_knighte5","number":5},{"id":"moon_knighte6","number":6}],"rel":"2022-03-30"},{"id":"black_panther_wf","title":"Black Panther: Wakanda Forever","type":"MOVIE","timeline":"2025","year":2022,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2022-11-11"},{"id":"echo","title":"Echo","type":"SERIES","timeline":"2025","year":2024,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"echoe1","number":1},{"id":"echoe2","number":2},{"id":"echoe3","number":3},{"id":"echoe4","number":4},{"id":"echoe5","number":5}],"rel":"2024-01-09"},{"id":"she_hulk","title":"She-Hulk: Attorney at Law","type":"SERIES","timeline":"2025","year":2022,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"she_hulke1","number":1},{"id":"she_hulke2","number":2},{"id":"she_hulke3","number":3},{"id":"she_hulke4","number":4},{"id":"she_hulke5","number":5},{"id":"she_hulke6","number":6},{"id":"she_hulke7","number":7},{"id":"she_hulke8","number":8},{"id":"she_hulke9","number":9}],"rel":"2022-08-18"},{"id":"ms_marvel","title":"Ms. Marvel","type":"SERIES","timeline":"2025","year":2022,"phase":"Phase 4","universe":"MCU","episodes":[{"id":"ms_marvele1","number":1},{"id":"ms_marvele2","number":2},{"id":"ms_marvele3","number":3},{"id":"ms_marvele4","number":4},{"id":"ms_marvele5","number":5},{"id":"ms_marvele6","number":6}],"rel":"2022-06-08"},{"id":"thor_love_thunder","title":"Thor: Love and Thunder","type":"MOVIE","timeline":"2025","year":2022,"phase":"Phase 4","universe":"MCU","episodes":null,"rel":"2022-07-08"},{"id":"werewolf","title":"Werewolf by Night","type":"SPECIAL","timeline":"2025","year":2022,"phase":"Special Presentation","universe":"MCU","episodes":null,"rel":"2022-10-07"},{"id":"guardians_holiday","title":"The Guardians of the Galaxy Holiday Special","type":"SPECIAL","timeline":"Christmas 2025","year":2022,"phase":"Special Presentation","universe":"MCU","episodes":null,"rel":"2022-11-25"},{"id":"ant_man_quantumania","title":"Ant-Man and the Wasp: Quantumania","type":"MOVIE","timeline":"Modern MCU","year":2023,"phase":"Phase 5","universe":"MCU","episodes":null,"rel":"2023-02-17"},{"id":"guardians_3","title":"Guardians of the Galaxy Vol. 3","type":"MOVIE","timeline":"2026","year":2023,"phase":"Phase 5","universe":"MCU","episodes":null,"rel":"2023-05-05"},{"id":"secret_invasion","title":"Secret Invasion","type":"SERIES","timeline":"2026","year":2023,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"secret_invasione1","number":1},{"id":"secret_invasione2","number":2},{"id":"secret_invasione3","number":3},{"id":"secret_invasione4","number":4},{"id":"secret_invasione5","number":5},{"id":"secret_invasione6","number":6}],"rel":"2023-06-21"},{"id":"marvels","title":"The Marvels","type":"MOVIE","timeline":"2026","year":2023,"phase":"Phase 5","universe":"MCU","episodes":null,"rel":"2023-11-10"},{"id":"agatha","title":"Agatha All Along","type":"SERIES","timeline":"2026","year":2024,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"agathae1","number":1},{"id":"agathae2","number":2},{"id":"agathae3","number":3},{"id":"agathae4","number":4},{"id":"agathae5","number":5},{"id":"agathae6","number":6},{"id":"agathae7","number":7},{"id":"agathae8","number":8},{"id":"agathae9","number":9}],"rel":"2024-09-18"},{"id":"daredevil_ba_s1","title":"Daredevil: Born Again — Season 1","type":"SERIES","timeline":"2026","year":2025,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"daredevil_ba_s1e1","number":1},{"id":"daredevil_ba_s1e2","number":2},{"id":"daredevil_ba_s1e3","number":3},{"id":"daredevil_ba_s1e4","number":4},{"id":"daredevil_ba_s1e5","number":5},{"id":"daredevil_ba_s1e6","number":6},{"id":"daredevil_ba_s1e7","number":7},{"id":"daredevil_ba_s1e8","number":8},{"id":"daredevil_ba_s1e9","number":9}],"rel":"2025-03-04"},{"id":"ironheart","title":"Ironheart","type":"SERIES","timeline":"After Wakanda Forever","year":2025,"phase":"Phase 5","universe":"MCU","episodes":[{"id":"ironhearte1","number":1},{"id":"ironhearte2","number":2},{"id":"ironhearte3","number":3},{"id":"ironhearte4","number":4},{"id":"ironhearte5","number":5},{"id":"ironhearte6","number":6}],"rel":"2025-06-24"},{"id":"brave_new_world","title":"Captain America: Brave New World","type":"MOVIE","timeline":"Post-2026","year":2025,"phase":"Phase 5","universe":"MCU","episodes":null,"rel":"2025-02-14"},{"id":"thunderbolts","title":"Thunderbolts*","type":"MOVIE","timeline":"Post-Brave New World","year":2025,"phase":"Phase 5","universe":"MCU","episodes":null,"rel":"2025-05-02"},{"id":"daredevil_ba_s2","title":"Daredevil: Born Again — Season 2","type":"SERIES","timeline":"After Season 1","year":2026,"phase":"Phase 6","universe":"MCU","episodes":[{"id":"daredevil_ba_s2e1","number":1},{"id":"daredevil_ba_s2e2","number":2},{"id":"daredevil_ba_s2e3","number":3},{"id":"daredevil_ba_s2e4","number":4},{"id":"daredevil_ba_s2e5","number":5},{"id":"daredevil_ba_s2e6","number":6},{"id":"daredevil_ba_s2e7","number":7},{"id":"daredevil_ba_s2e8","number":8}],"rel":"2026-03-24"},{"id":"wonder_man","title":"Wonder Man — Season 1","type":"SERIES","timeline":"Modern MCU","year":2026,"phase":"Phase 6","universe":"MCU","episodes":[{"id":"wonder_mane1","number":1},{"id":"wonder_mane2","number":2},{"id":"wonder_mane3","number":3},{"id":"wonder_mane4","number":4},{"id":"wonder_mane5","number":5},{"id":"wonder_mane6","number":6},{"id":"wonder_mane7","number":7},{"id":"wonder_mane8","number":8}],"rel":"2026-01-27"},{"id":"punisher_one_last_kill","title":"The Punisher: One Last Kill","type":"SPECIAL","timeline":"Modern MCU","year":2026,"phase":"Marvel Television","universe":"MCU","episodes":null,"rel":"2026-05-12"},{"id":"deadpool_wolverine","title":"Deadpool & Wolverine","type":"MOVIE","timeline":"Multiverse / TVA","year":2024,"phase":"Phase 5","universe":"MCU","episodes":null,"rel":"2024-07-26"},{"id":"fantastic_four_first_steps","title":"The Fantastic Four: First Steps","type":"MOVIE","timeline":"Alternate 1960s-inspired universe","year":2025,"phase":"Phase 6","universe":"MCU","episodes":null,"rel":"2025-07-25"},{"id":"spider_man_brand_new_day","title":"Spider-Man: Brand New Day","type":"MOVIE","timeline":"Modern MCU","year":2026,"phase":"Phase 6","universe":"MCU","episodes":null,"rel":"2026-07-31"},{"id":"avengers_doomsday","title":"Avengers: Doomsday","type":"MOVIE","timeline":"Modern MCU","year":2026,"phase":"Phase 6","universe":"MCU","episodes":null,"soon":"18 Dec 2026","rel":"2026-12-18"},{"id":"eyes_of_wakanda","title":"Eyes of Wakanda","type":"SERIES","timeline":"Across Wakandan history","year":2025,"phase":"Marvel Animation","universe":"MCU","episodes":[{"id":"eyes_of_wakanda_e1","number":1},{"id":"eyes_of_wakanda_e2","number":2},{"id":"eyes_of_wakanda_e3","number":3},{"id":"eyes_of_wakanda_e4","number":4}],"rel":"2025-08-27"},{"id":"marvel_zombies","title":"Marvel Zombies — Season 1","type":"SERIES","timeline":"Alternate multiverse","year":2025,"phase":"Marvel Animation","universe":"MCU","episodes":[{"id":"marvel_zombies_e1","number":1},{"id":"marvel_zombies_e2","number":2},{"id":"marvel_zombies_e3","number":3},{"id":"marvel_zombies_e4","number":4}],"rel":"2025-09-24"},{"id":"xmen_first_class","title":"X-Men: First Class","type":"MOVIE","timeline":"1962","year":2011,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2011-06-03"},{"id":"xmen_origins_wolverine","title":"X-Men Origins: Wolverine","type":"MOVIE","timeline":"1979 (main story)","year":2009,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2009-05-01"},{"id":"xmen_days_future_past","title":"X-Men: Days of Future Past","type":"MOVIE","timeline":"1973 / 2023","year":2014,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2014-05-23"},{"id":"xmen_apocalypse","title":"X-Men: Apocalypse","type":"MOVIE","timeline":"1983","year":2016,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2016-05-27"},{"id":"xmen_dark_phoenix","title":"Dark Phoenix","type":"MOVIE","timeline":"1992","year":2019,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2019-06-07"},{"id":"xmen_2000","title":"X-Men","type":"MOVIE","timeline":"2000s","year":2000,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2000-07-14"},{"id":"x2","title":"X2: X-Men United","type":"MOVIE","timeline":"After X-Men","year":2003,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2003-05-02"},{"id":"xmen_last_stand","title":"X-Men: The Last Stand","type":"MOVIE","timeline":"After X2","year":2006,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2006-05-26"},{"id":"the_wolverine","title":"The Wolverine","type":"MOVIE","timeline":"After The Last Stand","year":2013,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2013-07-26"},{"id":"deadpool","title":"Deadpool","type":"MOVIE","timeline":"Modern X-Men timeline","year":2016,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2016-02-12"},{"id":"deadpool_2","title":"Deadpool 2","type":"MOVIE","timeline":"After Deadpool","year":2018,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2018-05-18"},{"id":"new_mutants","title":"The New Mutants","type":"MOVIE","timeline":"X-Men universe","year":2020,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2020-08-28"},{"id":"logan","title":"Logan","type":"MOVIE","timeline":"2029","year":2017,"phase":"X-Men Universe","universe":"X_MEN","episodes":null,"rel":"2017-03-03"},{"id":"xmen_97_s1","title":"X-Men '97 — Season 1","type":"SERIES","timeline":"Animated continuation","year":2024,"phase":"X-Men Animation","universe":"X_MEN","episodes":[{"id":"xmen_97_s1e1","number":1},{"id":"xmen_97_s1e2","number":2},{"id":"xmen_97_s1e3","number":3},{"id":"xmen_97_s1e4","number":4},{"id":"xmen_97_s1e5","number":5},{"id":"xmen_97_s1e6","number":6},{"id":"xmen_97_s1e7","number":7},{"id":"xmen_97_s1e8","number":8},{"id":"xmen_97_s1e9","number":9},{"id":"xmen_97_s1e10","number":10}],"rel":"2024-03-20"},{"id":"xmen_97_s2","title":"X-Men '97 — Season 2","type":"SERIES","timeline":"Animated continuation","year":2026,"phase":"X-Men Animation","universe":"X_MEN","episodes":[{"id":"xmen_97_s2e1","number":1},{"id":"xmen_97_s2e2","number":2},{"id":"xmen_97_s2e3","number":3},{"id":"xmen_97_s2e4","number":4},{"id":"xmen_97_s2e5","number":5},{"id":"xmen_97_s2e6","number":6},{"id":"xmen_97_s2e7","number":7},{"id":"xmen_97_s2e8","number":8},{"id":"xmen_97_s2e9","number":9}],"rel":"2026-07-01"},{"id":"spider_man_2002","title":"Spider-Man","type":"MOVIE","timeline":"Raimi universe","year":2002,"phase":"Spider-Man Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2002-05-03"},{"id":"spider_man_2_2004","title":"Spider-Man 2","type":"MOVIE","timeline":"After Spider-Man","year":2004,"phase":"Spider-Man Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2004-06-30"},{"id":"spider_man_3_2007","title":"Spider-Man 3","type":"MOVIE","timeline":"After Spider-Man 2","year":2007,"phase":"Spider-Man Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2007-05-04"},{"id":"amazing_spider_man","title":"The Amazing Spider-Man","type":"MOVIE","timeline":"Amazing universe","year":2012,"phase":"Spider-Man Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2012-07-03"},{"id":"amazing_spider_man_2","title":"The Amazing Spider-Man 2","type":"MOVIE","timeline":"After The Amazing Spider-Man","year":2014,"phase":"Spider-Man Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2014-05-02"},{"id":"spiderverse","title":"Spider-Man: Into the Spider-Verse","type":"MOVIE","timeline":"Spider-Verse multiverse","year":2018,"phase":"Spider-Verse","universe":"SPIDER_MAN","episodes":null,"rel":"2018-12-14"},{"id":"spiderverse_across","title":"Spider-Man: Across the Spider-Verse","type":"MOVIE","timeline":"After Into the Spider-Verse","year":2023,"phase":"Spider-Verse","universe":"SPIDER_MAN","episodes":null,"rel":"2023-06-02"},{"id":"venom","title":"Venom","type":"MOVIE","timeline":"Sony Spider-Man Universe","year":2018,"phase":"Sony Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2018-10-05"},{"id":"venom_carnage","title":"Venom: Let There Be Carnage","type":"MOVIE","timeline":"After Venom","year":2021,"phase":"Sony Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2021-10-01"},{"id":"morbius","title":"Morbius","type":"MOVIE","timeline":"Sony Spider-Man Universe","year":2022,"phase":"Sony Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2022-04-01"},{"id":"madame_web","title":"Madame Web","type":"MOVIE","timeline":"2003 / Sony universe","year":2024,"phase":"Sony Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2024-02-14"},{"id":"venom_last_dance","title":"Venom: The Last Dance","type":"MOVIE","timeline":"After Let There Be Carnage","year":2024,"phase":"Sony Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2024-10-25"},{"id":"kraven","title":"Kraven the Hunter","type":"MOVIE","timeline":"Sony Spider-Man Universe","year":2024,"phase":"Sony Universe","universe":"SPIDER_MAN","episodes":null,"rel":"2024-12-13"},{"id":"friendly_neighborhood_spider_man_s1","title":"Your Friendly Neighborhood Spider-Man — Season 1","type":"SERIES","timeline":"Alternate Spider-Man timeline","year":2025,"phase":"Marvel Animation","universe":"SPIDER_MAN","episodes":[{"id":"friendly_neighborhood_spider_man_s1_e1","number":1},{"id":"friendly_neighborhood_spider_man_s1_e2","number":2},{"id":"friendly_neighborhood_spider_man_s1_e3","number":3},{"id":"friendly_neighborhood_spider_man_s1_e4","number":4},{"id":"friendly_neighborhood_spider_man_s1_e5","number":5},{"id":"friendly_neighborhood_spider_man_s1_e6","number":6},{"id":"friendly_neighborhood_spider_man_s1_e7","number":7},{"id":"friendly_neighborhood_spider_man_s1_e8","number":8},{"id":"friendly_neighborhood_spider_man_s1_e9","number":9},{"id":"friendly_neighborhood_spider_man_s1_e10","number":10}],"rel":"2025-01-29"},{"id":"spider_noir_s1","title":"Spider-Noir — Season 1","type":"SERIES","timeline":"Noir universe","year":2026,"phase":"Live-Action Series","universe":"SPIDER_MAN","episodes":[{"id":"spider_noir_s1e1","number":1},{"id":"spider_noir_s1e2","number":2},{"id":"spider_noir_s1e3","number":3},{"id":"spider_noir_s1e4","number":4},{"id":"spider_noir_s1e5","number":5},{"id":"spider_noir_s1e6","number":6},{"id":"spider_noir_s1e7","number":7},{"id":"spider_noir_s1e8","number":8}],"rel":"2026-05-27"},{"id":"friendly_neighborhood_spider_man_s2","title":"Your Friendly Neighborhood Spider-Man — Season 2","type":"SERIES","timeline":"Alternate Spider-Man timeline","year":2027,"phase":"Marvel Animation","universe":"SPIDER_MAN","episodes":[],"soon":"13 Jan 2027","rel":"2027-01-13"}];
+const UNI_LABEL = {MCU:'MCU', X_MEN:'X-Men', SPIDER_MAN:'Spider-Man'};
+const TYPE_LABEL = {MOVIE:'Movie', SERIES:'Series', ONE_SHOT:'One-shot', SPECIAL:'Special'};
+const UNI_ORDER = ['MCU','X_MEN','SPIDER_MAN'];
+const BASE = CATALOG.map((it,i)=>Object.assign({pos:i},it));
+const LIVE = BASE.filter(i=>!i.soon);
+
+/* ---------- state ---------- */
+const ui = {tab:'next', uni:'ALL', type:'ALL', order:'timeline', hideDone:false, q:'', open:null, confirmReset:false};
+let watched = {};
+try{ const u=JSON.parse(localStorage.getItem('mio_ui')||'{}'); for(const k of ['tab','uni','type','order','hideDone']) if(k in u) ui[k]=u[k]; }catch(e){}
+try{ watched = JSON.parse(localStorage.getItem('mio_watched')||'{}')||{}; }catch(e){ watched={}; }
+function saveUi(){ try{ localStorage.setItem('mio_ui', JSON.stringify({tab:ui.tab,uni:ui.uni,type:ui.type,order:ui.order,hideDone:ui.hideDone})); }catch(e){} }
+function saveLocal(){ try{ localStorage.setItem('mio_watched', JSON.stringify(watched)); }catch(e){} }
+
+/* ---------- helpers ---------- */
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isSeries = it => it.type==='SERIES';
+const epsOf = it => it.episodes||[];
+function doneCount(it){ return isSeries(it)? epsOf(it).filter(e=>watched[e.id]).length : (watched[it.id]?1:0); }
+function totalCount(it){ return isSeries(it)? epsOf(it).length : 1; }
+function isDone(it){ const t=totalCount(it); return t>0 && doneCount(it)===t; }
+function initials(t){ const w=t.replace(/[^A-Za-z0-9 :'&.\u2014-]/g,'').split(/[\s:\u2014-]+/).filter(x=>x&&!/^(the|of|and|a|in|on)$/i.test(x)); const s=(w[0]||'?')[0]+((w[1]||'')[0]||''); return s.toUpperCase(); }
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(d){ const p=d.split('-'); return (+p[2])+' '+MON[+p[1]-1]+' '+p[0]; }
+function ordered(list){
+  if(ui.order==='release') return list.slice().sort((a,b)=>(UNI_ORDER.indexOf(a.universe)-UNI_ORDER.indexOf(b.universe))||a.rel.localeCompare(b.rel)||(a.pos-b.pos));
+  return list;
+}
+function inScope(){ return BASE.filter(it=>ui.uni==='ALL'||it.universe===ui.uni); }
+const isExtra = it => it.type==='ONE_SHOT'||it.type==='SPECIAL';
+function setDone(it,val){
+  if(isSeries(it)) for(const e of epsOf(it)){ if(val) watched[e.id]=1; else delete watched[e.id]; }
+  else { if(val) watched[it.id]=1; else delete watched[it.id]; }
+}
+function changed(){ saveLocal(); scheduleSave(); render(); }
+
+/* ---------- sync (per-viewer private store, falls back to this device) ---------- */
+let ref=null, saving=false, dirty=false, saveTimer=null, firstSnap=true;
+function setSync(ok,msg){ const el=document.getElementById('sync'); if(!el) return; el.className='sync'+(ok?' ok':''); el.querySelector('span').textContent=msg; }
+function scheduleSave(){ if(!ref) return; dirty=true; clearTimeout(saveTimer); saveTimer=setTimeout(flush,500); }
+async function flush(){
+  if(!ref||saving||!dirty) return;
+  saving=true; dirty=false;
+  try{ await ref.set({watched:Object.assign({},watched), updatedAt:Date.now()}); setSync(true,'Synced'); }
+  catch(e){ setSync(false,'This device'); }
+  saving=false;
+  if(dirty) flush();
+}
+async function initSync(){
+  try{
+    if(!window.claude||!claude.use) return;
+    const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
+    if(!db||!user) return;
+    const uid=await user.id();
+    if(!uid) return;
+    ref=db.doc('data/users/'+uid+'/progress');
+    ref.onSnapshot(snap=>{
+      if(snap.exists){
+        const remote=(snap.data()&&snap.data().watched)||{};
+        if(JSON.stringify(remote)!==JSON.stringify(watched) && !saving && !dirty){ watched=Object.assign({},remote); saveLocal(); render(); }
+      } else if(firstSnap && Object.keys(watched).length){ dirty=true; flush(); }
+      firstSnap=false; if(!saving&&!dirty) setSync(true,'Synced');
+    }, ()=>{ setSync(false,'This device'); ref=null; });
+  }catch(e){ ref=null; }
+}
+
+
+/* ---------- posters (TMDB, key kept on this phone only) ---------- */
+let posterKey=''; try{ posterKey=localStorage.getItem('mio_tmdb_key')||''; }catch(e){}
+let posters={}; try{ posters=JSON.parse(localStorage.getItem('mio_posters')||'{}')||{}; }catch(e){ posters={}; }
+let posterMsg='', fetching=false;
+function savePosters(){ try{ localStorage.setItem('mio_posters',JSON.stringify(posters)); }catch(e){} }
+function posterImg(it,size,cls){ const p=posters[it.id]; return p? `<img ${cls?'class="'+cls+'" ':''}loading="lazy" alt="" src="https://image.tmdb.org/t/p/${size}${esc(p)}" onerror="this.remove()">` : ''; }
+function cleanTitle(t){ return t.replace(/\s+[—-]\s+Season\s+\d+$/i,'').replace(/\*/g,'').replace(/’/g,"'").trim(); }
+async function tmdbGet(path,params){
+  const u=new URL('https://api.themoviedb.org/3/'+path); u.searchParams.set('api_key',posterKey);
+  for(const k in (params||{})) u.searchParams.set(k,params[k]);
+  const r=await fetch(u.toString()); if(!r.ok){ const e=new Error('http '+r.status); e.status=r.status; throw e; }
+  return r.json();
+}
+async function findPoster(it){
+  const q=cleanTitle(it.title), tv=isSeries(it), ep=tv?'search/tv':'search/movie';
+  const params=tv?{query:q,first_air_date_year:it.year}:{query:q,year:it.year};
+  let d=await tmdbGet(ep,params), hit=(d.results||[]).find(r=>r.poster_path);
+  if(!hit){ d=await tmdbGet(ep,{query:q}); hit=(d.results||[]).find(r=>r.poster_path); }
+  return hit?hit.poster_path:'';
+}
+async function fetchPosters(){
+  if(fetching||!posterKey) return; fetching=true;
+  const todo=BASE.filter(it=>posters[it.id]===undefined); let n=0, stop=false;
+  async function worker(){
+    while(todo.length&&!stop){
+      const it=todo.shift();
+      try{ posters[it.id]=await findPoster(it); }
+      catch(e){ if(e.status===401||e.status===403){ stop=true; posterMsg='TMDB rejected that key. Check it and save it again.'; } else if(e.status===429){ todo.push(it); await new Promise(r=>setTimeout(r,1500)); } else { posters[it.id]=undefined; delete posters[it.id]; stop=stop||(e.message==='Failed to fetch'); if(e.message==='Failed to fetch') posterMsg='Could not reach TMDB. Check your connection and try again.'; } }
+      if(++n%8===0){ savePosters(); if(!(ui.tab==='progress'&&document.activeElement&&document.activeElement.id==='tmdbkey')) render(); }
+    }
+  }
+  await Promise.all([worker(),worker(),worker(),worker()]);
+  savePosters(); fetching=false;
+  if(!stop) posterMsg=''; render();
+}
+function postersCard(){
+  const have=Object.values(posters).filter(Boolean).length;
+  return `<div class="card"><h2>Posters</h2>
+    <div class="label">${posterKey?`Key saved on this phone. ${have} of ${BASE.length} posters loaded${fetching?' (loading…)':''}.`:'Paste your TMDB API key (the v3 key). It stays on this phone and is only sent to TMDB.'}</div>
+    <input class="search" id="tmdbkey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${posterKey?'Paste a new key to replace it':'TMDB API key'}">
+    ${posterMsg?`<div class="danger">${esc(posterMsg)}</div>`:''}
+    <div class="row2"><button class="btn small primary" data-act="savekey">Save key</button>${posterKey?`<button class="btn small" data-act="rmkey">Remove key and posters</button>`:''}</div>
+  </div>`;
+}
+
+/* ---------- views ---------- */
+function filters(){
+  const uniChips=['ALL',...UNI_ORDER].map(u=>`<button class="chip" data-act="uni" data-v="${u}" aria-pressed="${ui.uni===u}">${u==='ALL'?'All':UNI_LABEL[u]}</button>`).join('');
+  const sl=(ui.uni==='ALL'||ui.uni==='MCU')?'MCU order':'Story order';
+  const ordChips=`<button class="chip" data-act="order" data-v="timeline" aria-pressed="${ui.order==='timeline'}">${sl}</button><button class="chip" data-act="order" data-v="release" aria-pressed="${ui.order==='release'}">Release date</button>`;
+  return `<div class="chips" role="group" aria-label="Universe">${uniChips}</div>
+    <div class="chips" role="group" aria-label="Order"><span class="label" style="align-self:center;margin-right:2px">Order</span>${ordChips}</div>`;
+}
+function rowHtml(it,n){
+  const dc=doneCount(it), tc=totalCount(it), done=isDone(it);
+  const prog = isSeries(it)? `<span class="check ${dc&&!done?'part':''}" aria-pressed="${done}">${done?'\u2713':(dc?dc+'/'+tc:'\u2713')}</span>` : `<span class="check" aria-pressed="${done}">\u2713</span>`;
+  const meta=[it.timeline?'Story: '+it.timeline:'', it.rel?'Released '+fmtDate(it.rel):'', it.phase].filter(Boolean).map(esc).join(' \u00b7 ');
+  return `<div class="item" role="listitem">
+    <span class="pos">${n}</span>
+    <button class="poster u-${it.universe} ${done?'done':''}" data-act="open" data-id="${esc(it.id)}" aria-label="Details for ${esc(it.title)}">${esc(initials(it.title))}${posterImg(it,'w185')}</button>
+    <button class="t ${done?'done':''}" style="text-align:left" data-act="open" data-id="${esc(it.id)}"><div class="name">${esc(it.title)}</div><div class="meta">${it.soon?'<span class="badge">Coming '+esc(it.soon)+'</span>':''}<span class="badge">${TYPE_LABEL[it.type]}</span>${isSeries(it)&&tc?tc+' ep \u00b7 ':''}${meta}</div></button>
+    ${it.soon?'<span class="label" style="white-space:nowrap">Soon</span>':`<button data-act="toggle" data-id="${esc(it.id)}" aria-label="${done?'Mark as not watched':'Mark as watched'}: ${esc(it.title)}">${prog}</button>`}
+  </div>`;
+}
+function viewNext(){
+  const list=ordered(inScope()).filter(it=>!it.soon);
+  const pending=list.filter(it=>!isDone(it));
+  const total=list.reduce((a,it)=>a+totalCount(it),0), dn=list.reduce((a,it)=>a+doneCount(it),0);
+  const pct=total?Math.round(dn/total*100):0;
+  let hero;
+  if(!pending.length){ hero=`<div class="hero"><div class="label">All caught up</div><div class="big">Everything here is watched</div></div>`; }
+  else{
+    const it=pending[0], dc=doneCount(it), tc=totalCount(it);
+    const nextEp = isSeries(it)? epsOf(it).find(e=>!watched[e.id]) : null;
+    const where = isSeries(it)? `Episode ${nextEp?nextEp.number:dc+1} of ${tc}`:`${TYPE_LABEL[it.type]} \u00b7 ${fmtDate(it.rel)}`;
+    hero=`<div class="hero">
+      <div class="label">Up next${ui.uni==='ALL'?'':' \u00b7 '+UNI_LABEL[ui.uni]}</div>
+      <div class="big">${esc(it.title)}</div>
+      <div class="meta label" style="text-transform:none">${esc(where)} \u00b7 ${esc(it.timeline)} \u00b7 ${esc(it.phase)}</div>
+      <div class="row2">
+        <button class="btn primary" data-act="${isSeries(it)?'nextep':'toggle'}" data-id="${esc(it.id)}">${isSeries(it)?'Watched this episode':'Mark watched'}</button>
+        <button class="btn" data-act="open" data-id="${esc(it.id)}">Details</button>
+      </div>
+    </div>`;
+  }
+  const later=pending.slice(1,7);
+  return `${filters()}${hero}
+    <div class="stat"><div class="head"><span>${ui.uni==='ALL'?'Everything':UNI_LABEL[ui.uni]}</span><span>${dn} of ${total} \u00b7 ${pct}%</span></div><div class="bar"><span style="width:${pct}%"></span></div></div>
+    ${later.length?`<div class="label">Coming up</div><div class="list" role="list">${later.map((it,i)=>rowHtml(it,i+2)).join('')}</div>`:''}`;
+}
+function viewTimeline(){
+  let list=ordered(inScope());
+  const numbered=list.map((it,i)=>({it,n:i+1}));
+  let rows=numbered;
+  if(ui.type!=='ALL') rows=rows.filter(({it})=> ui.type==='EXTRA'?isExtra(it): it.type===ui.type);
+  if(ui.hideDone) rows=rows.filter(({it})=>!isDone(it));
+  const q=ui.q.trim().toLowerCase();
+  if(q) rows=rows.filter(({it})=>(it.title+' '+it.phase+' '+it.timeline).toLowerCase().includes(q));
+  const types=[['ALL','All'],['MOVIE','Movies'],['SERIES','Series'],['EXTRA','Extras']].map(([v,l])=>`<button class="chip" data-act="type" data-v="${v}" aria-pressed="${ui.type===v}">${l}</button>`).join('');
+  return `${filters()}
+    <div class="chips" role="group" aria-label="Type">${types}</div>
+    <div class="row2" style="justify-content:flex-end"><label class="toggle"><input type="checkbox" id="hideDone" ${ui.hideDone?'checked':''}> Hide watched</label></div>
+    <input class="search" id="q" type="search" placeholder="Search titles, phases, years" value="${esc(ui.q)}" autocomplete="off">
+    ${rows.length? `<div class="list" role="list">${rows.map(({it,n})=>rowHtml(it,n)).join('')}</div>` : `<div class="list"><div class="empty">Nothing matches these filters.</div></div>`}
+    <div class="label" style="text-align:center">${rows.length} of ${list.length} shown</div>`;
+}
+function bar(label,dn,tc){ const p=tc?Math.round(dn/tc*100):0; return `<div class="stat"><div class="head"><span>${esc(label)}</span><span>${dn}/${tc} \u00b7 ${p}%</span></div><div class="bar"><span style="width:${p}%"></span></div></div>`; }
+function viewProgress(){
+  const all=LIVE;
+  const movies=all.filter(i=>i.type==='MOVIE'), series=all.filter(isSeries), extras=all.filter(isExtra);
+  const mT=movies.length, mD=movies.filter(isDone).length;
+  const eT=series.reduce((a,i)=>a+epsOf(i).length,0), eD=series.reduce((a,i)=>a+doneCount(i),0);
+  const xT=extras.length, xD=extras.filter(isDone).length;
+  const T=mT+eT+xT, D=mD+eD+xD, P=T?Math.round(D/T*100):0;
+  const C=2*Math.PI*46;
+  const uniBars=UNI_ORDER.map(u=>{ const l=all.filter(i=>i.universe===u); return bar(UNI_LABEL[u], l.reduce((a,i)=>a+doneCount(i),0), l.reduce((a,i)=>a+totalCount(i),0)); }).join('');
+  const phases=[]; for(const i of all){ if(!phases.includes(i.phase)) phases.push(i.phase); }
+  const phaseBars=phases.map(p=>{ const l=all.filter(i=>i.phase===p); return bar(p, l.reduce((a,i)=>a+doneCount(i),0), l.reduce((a,i)=>a+totalCount(i),0)); }).join('');
+  return `<div class="card"><div class="ringwrap">
+      <div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="46" fill="none" stroke="var(--surface2)" stroke-width="12"/><circle cx="60" cy="60" r="46" fill="none" stroke="var(--green)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-P/100)).toFixed(1)}"/></svg><div class="pct">${P}%</div></div>
+      <div class="counts"><div>Movies <b>${mD}/${mT}</b></div><div>Episodes <b>${eD}/${eT}</b></div><div>Extras <b>${xD}/${xT}</b></div><div class="label" style="margin-top:4px">${D} of ${T} watched</div></div>
+    </div></div>
+    <div class="card"><h2>By universe</h2>${uniBars}</div>
+    <div class="card"><h2>By phase</h2>${phaseBars}</div>
+    ${postersCard()}
+    <div class="card"><h2>Your data</h2>
+      <div class="label">Progress is saved on this phone only. It does not sync to other devices in this version.</div>
+      ${ui.confirmReset? `<div class="row2"><span class="danger">Clear everything you have ticked off?</span><button class="btn small" data-act="reset-yes">Yes, clear it</button><button class="btn small" data-act="reset-no">Cancel</button></div>` : `<div><button class="btn small" data-act="reset">Reset all progress</button></div>`}
+    </div>`;
+}
+function sheetHtml(it){
+  const dc=doneCount(it), tc=totalCount(it), done=isDone(it);
+  const eps = isSeries(it)&&tc? `<div class="label">Episodes \u00b7 ${dc}/${tc}</div><div class="eps">${epsOf(it).map(e=>`<button class="ep" data-act="ep" data-id="${esc(e.id)}" aria-pressed="${!!watched[e.id]}">Ep ${e.number}</button>`).join('')}</div>` : '';
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(it.title)}">
+    <div class="row2" style="justify-content:space-between"><span class="label">${esc(UNI_LABEL[it.universe])} \u00b7 ${TYPE_LABEL[it.type]}</span><button class="btn small" data-act="close">Close</button></div>
+    ${posterImg(it,'w342','sheetposter')}<h3>${esc(it.title)}</h3>
+    <dl class="kv"><dt>Story time</dt><dd>${esc(it.timeline)}</dd><dt>Released</dt><dd>${esc(fmtDate(it.rel))}</dd><dt>Group</dt><dd>${esc(it.phase)}</dd><dt>Watch order</dt><dd>#${BASE.filter(x=>x.universe===it.universe).indexOf(it)+1} of ${BASE.filter(x=>x.universe===it.universe).length} in ${esc(UNI_LABEL[it.universe])}</dd></dl>
+    ${eps}
+    <div class="row2">
+      ${it.soon?'<span class="label">Not out yet \u00b7 '+esc(it.soon)+'</span>':''}<button class="btn primary" ${it.soon?'hidden ':''}data-act="toggle" data-id="${esc(it.id)}">${done?'Mark as not watched':(isSeries(it)?'Mark whole series watched':'Mark watched')}</button>
+      ${isSeries(it)&&dc&&!done?`<button class="btn" data-act="clearseries" data-id="${esc(it.id)}">Clear episodes</button>`:''}
+    </div>
+  </div>`;
+}
+function render(){
+  const main=document.getElementById('main');
+  const keepScroll=window.scrollY;
+  const focusId=document.activeElement&&document.activeElement.id;
+  const caret=(document.activeElement&&document.activeElement.id==='q')?document.activeElement.selectionStart:null;
+  main.innerHTML = (ui.tab==='next'?viewNext(): ui.tab==='timeline'?viewTimeline(): viewProgress()) + '<div class="foot">Posters: this product uses the TMDB API but is not endorsed or certified by TMDB.</div>';
+  document.getElementById('tabs').innerHTML=[['next','Next up'],['timeline','Timeline'],['progress','Progress']].map(([k,l])=>`<button role="tab" data-act="tab" data-v="${k}" aria-selected="${ui.tab===k}">${l}</button>`).join('');
+  const layer=document.getElementById('layer');
+  const it=ui.open?BASE.find(x=>x.id===ui.open):null;
+  const oldSheet=layer.querySelector('.sheet'); const sheetTop=oldSheet?oldSheet.scrollTop:0;
+  layer.innerHTML = it? sheetHtml(it):'';
+  const newSheet=layer.querySelector('.sheet'); if(newSheet&&oldSheet) newSheet.scrollTop=sheetTop;
+  if(newSheet&&!oldSheet) newSheet.classList.add('enter');
+  if(focusId==='q'){ const q=document.getElementById('q'); if(q){ q.focus(); try{q.setSelectionRange(caret,caret);}catch(e){} } }
+  window.scrollTo(0,keepScroll);
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const act=b.dataset.act, id=b.dataset.id, v=b.dataset.v;
+  const it=id?BASE.find(x=>x.id===id):null;
+  switch(act){
+    case 'tab': ui.tab=v; ui.confirmReset=false; saveUi(); render(); window.scrollTo(0,0); break;
+    case 'uni': ui.uni=v; saveUi(); render(); break;
+    case 'type': ui.type=v; saveUi(); render(); break;
+    case 'order': ui.order=v; saveUi(); render(); break;
+    case 'open': ui.open=id; render(); break;
+    case 'close': ui.open=null; render(); break;
+    case 'toggle': if(it){ setDone(it,!isDone(it)); changed(); } break;
+    case 'ep': if(watched[id]) delete watched[id]; else watched[id]=1; changed(); break;
+    case 'nextep': if(it){ const ne=epsOf(it).find(x=>!watched[x.id]); if(ne){ watched[ne.id]=1; changed(); } } break;
+    case 'clearseries': if(it){ setDone(it,false); changed(); } break;
+    case 'savekey': { const el=document.getElementById('tmdbkey'); const k=(el&&el.value||'').trim();
+      if(!/^[0-9a-f]{32}$/i.test(k)){ posterMsg='That does not look like a TMDB v3 key (32 letters and numbers).'; render(); break; }
+      posterKey=k; posterMsg='Checking key…'; render();
+      tmdbGet('configuration').then(()=>{ try{ localStorage.setItem('mio_tmdb_key',k); }catch(e){} posterMsg=''; fetchPosters(); render(); })
+        .catch(e=>{ posterKey=''; try{ localStorage.removeItem('mio_tmdb_key'); }catch(x){} posterMsg=(e.status===401)?'TMDB rejected that key.':'Could not reach TMDB to check the key.'; render(); });
+      break; }
+    case 'rmkey': posterKey=''; posters={}; posterMsg=''; try{ localStorage.removeItem('mio_tmdb_key'); localStorage.removeItem('mio_posters'); }catch(e){} render(); break;
+    case 'reset': ui.confirmReset=true; render(); break;
+    case 'reset-no': ui.confirmReset=false; render(); break;
+    case 'reset-yes': watched={}; ui.confirmReset=false; changed(); break;
+  }
+});
+document.addEventListener('input',e=>{ if(e.target.id==='q'){ ui.q=e.target.value; render(); } });
+document.addEventListener('change',e=>{ if(e.target.id==='hideDone'){ ui.hideDone=e.target.checked; saveUi(); render(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&ui.open){ ui.open=null; render(); } });
+
+render();
+setSync(false,'This phone');
+if(posterKey) fetchPosters();
+</script>
+</body></html>
